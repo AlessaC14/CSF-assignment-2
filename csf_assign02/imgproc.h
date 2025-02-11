@@ -98,5 +98,8 @@ void imgproc_fade( struct Image *input_img, struct Image *output_img );
 int imgproc_kaleidoscope( struct Image *input_img, struct Image *output_img );
 
 // TODO: add prototypes for your helper functions
+void imgproc_red( struct Image *input_img, struct Image *output_img );
+void imgproc_green( struct Image *input_img, struct Image *output_img );
+void imgproc_blue( struct Image *input_img, struct Image *output_img );
 
 #endif // IMGPROC_H

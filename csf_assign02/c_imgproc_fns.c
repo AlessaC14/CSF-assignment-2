@@ -8,6 +8,59 @@
 
 // TODO: define your helper functions here
 
+int square( int x ) {
+  return x * x;
+}
+
+// extracts the red component of an image
+void imgproc_red( struct Image *input_img, struct Image *output_img ) {
+  for (int j = 0; j < input_img->width; j++) {
+    for (int i = 0; i < input_img->height; i++) {
+      uint32_t pixel = input_img->data[i * input_img->width + j];
+      uint32_t r = (pixel >> 24) & 0xFF; // extracting bits 24 to 31, red component
+      uint32_t a = pixel & 0xFF; // extracting bits 0 to 7, alpha component
+      output_img->data[i * input_img->width + j] = (r << 24) | a;
+    }
+  }
+}
+
+// extracts the green component of an image
+void imgproc_green( struct Image *input_img, struct Image *output_img ) {
+  for (int j = 0; j < input_img->width; j++) {
+    for (int i = 0; i < input_img->height; i++) {
+      uint32_t pixel = input_img->data[i * input_img->width + j];
+      uint32_t g = (pixel >> 16) & 0xFF; // extracting bits 16 to 23, green component
+      uint32_t a = pixel & 0xFF; // extracting bits 0 to 7, alpha component
+      output_img->data[i * input_img->width + j] = (g << 16) | a;
+    }
+  }
+}
+
+// extracts the blue component of an image
+void imgproc_blue( struct Image *input_img, struct Image *output_img ) {
+  for (int j = 0; j < input_img->width; j++) {
+    for (int i = 0; i < input_img->height; i++) {
+      uint32_t pixel = input_img->data[i * input_img->width + j];
+      uint32_t b = (pixel >> 8) & 0xFF; // extracting bits 8 to 15, green component
+      uint32_t a = pixel & 0xFF; // extracting bits 0 to 7, alpha component
+      output_img->data[i * input_img->width + j] = (b << 16) | a;
+    }
+  }
+}
+
+// calculates gradient of a pixel wrt to a row or column length for imgproc_fade()
+int gradient( int x, int n) {
+  return 1000000 - square(((2000000000 * x) / (1000000 * n)) - 1000);
+}
+
+// calculates modified color component of a pixel for imgproc_fade()
+int modified_color_comp ( int t_r, int t_c, uint32_t c) {
+  int c_new = (t_r * t_c * c) / 1000000000000;
+  return c_new;
+}
+
+// ---- End of helper functions ----
+
 // Convert input pixels to grayscale.
 // This transformation always succeeds.
 //
