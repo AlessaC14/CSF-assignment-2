@@ -1,7 +1,9 @@
 // C implementations of image processing functions
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <sys/types.h>
 #include "imgproc.h"
 
 // TODO: define your helper functions here
@@ -15,6 +17,18 @@
 //                pixels should be stored)
 void imgproc_grayscale( struct Image *input_img, struct Image *output_img ) {
   // TODO: implement
+  for (int j = 0; j < input_img->width; j++) {
+    for (int i = 0; i < input_img->height; i++) {
+      uint32_t pixel = input_img->data[i * input_img->width + j];
+      uint32_t r = (pixel >> 24) & 0xFF; // extracting bits 24 to 31, red component
+      uint32_t g = (pixel >> 16) & 0xFF; // extracting bits 16 to 23, green component
+      uint32_t b = (pixel >> 8) & 0xFF; // extracting bits 8 to 15, blue component
+      uint32_t a = (pixel) & 0xFF; // extracting bits 0 to 7, alpha component
+      // integer division will automatically floor the result, as required in guidelines
+      uint32_t grayscale = ((79 * r) + (128 * g) + (49 * b))/256; 
+      output_img->data[i * input_img->width + j] = (grayscale << 24) | (grayscale << 16) | (grayscale << 8) | a;
+    }
+  }
 }
 
 // Render an output image containing 4 replicas of the original image,
