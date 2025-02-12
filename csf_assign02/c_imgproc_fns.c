@@ -1,9 +1,7 @@
 // C implementations of image processing functions
 
-#include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/types.h>
 #include "imgproc.h"
 
 // TODO: define your helper functions here
@@ -70,6 +68,15 @@ int modified_color_comp ( int t_r, int t_c, uint32_t c) {
 //                pixels should be stored)
 void imgproc_grayscale( struct Image *input_img, struct Image *output_img ) {
   // TODO: implement
+
+  output_img->width = input_img->width;
+  output_img->height = input_img->height;
+
+  output_img->data = (uint32_t*) malloc(output_img->height * output_img->width * sizeof(uint32_t));
+  if (output_img->data == NULL) {
+    return; // if memory allocation fails
+  }
+
   for (int j = 0; j < input_img->width; j++) {
     for (int i = 0; i < input_img->height; i++) {
       uint32_t pixel = input_img->data[i * input_img->width + j];
@@ -113,6 +120,52 @@ void imgproc_grayscale( struct Image *input_img, struct Image *output_img ) {
 //                input image)
 void imgproc_rgb( struct Image *input_img, struct Image *output_img ) {
   // TODO: implement
+  output_img->height = 2 * input_img->height;
+  output_img->width = 2 * input_img->width;
+
+  output_img->data = (uint32_t*) malloc(output_img->height * output_img->width * sizeof(uint32_t));
+  if (output_img->data == NULL) {
+    return; // if memory allocation fails
+  }
+  
+  struct Image *red_image, *green_image, *blue_image;
+  img_init(red_image, input_img->width, input_img->height);
+  img_init(green_image, input_img->width, input_img->height);
+  img_init(blue_image, input_img->width, input_img->height);
+
+  imgproc_red(input_img, red_image);
+  imgproc_red(input_img, green_image);
+  imgproc_red(input_img, blue_image);
+
+  
+  for (int j = 0; j < input_img->width; j++) { // copying the original image into the output_img first
+    for (int i = 0; i < input_img->height; i++) {
+      output_img->data[i * input_img->width + j] = input_img->data[i * input_img->width + j];
+    }
+  }
+
+  for (int j = input_img->width; j < output_img->width; j++) { // copying the red image into the output_img first
+    for (int i = 0; i < input_img->height; i++) {
+      output_img->data[i * red_image->width + j] = red_image->data[i * red_image->width + (j - red_image->width)];
+    }
+  }
+
+  for (int j = 0; j < input_img->width; j++) { // copying the green image into the output_img first
+    for (int i = input_img->height; i < output_img->height; i++) {
+      output_img->data[i * green_image->width + j] = green_image->data[(i - input_img->height) * green_image->width + j];
+    }
+  }
+
+  for (int j = input_img->width; j < output_img->width; j++) { // copying the blue image into the output_img first
+    for (int i = input_img->height; i < output_img->height; i++) {
+      output_img->data[i * blue_image->width + j] = blue_image->data[(i - blue_image->height) * blue_image->width + (j - blue_image->width)];
+    }
+  }
+
+  img_cleanup(red_image);
+  img_cleanup(green_image);
+  img_cleanup(blue_image);
+
 }
 
 // Render a "faded" version of the input image.
@@ -127,6 +180,20 @@ void imgproc_rgb( struct Image *input_img, struct Image *output_img ) {
 //   output_img - pointer to the output Image
 void imgproc_fade( struct Image *input_img, struct Image *output_img ) {
   // TODO: implement
+
+  output_img->width = input_img->width;
+  output_img->height = input_img->height;
+
+  output_img->data = (uint32_t*) malloc(output_img->height * output_img->width * sizeof(uint32_t));
+  if (output_img->data == NULL) {
+    return; // if memory allocation fails
+  }
+
+  for (int j = 0; j < input_img->width; j++) {
+    for (int i = 0; i < input_img->height; i++) {
+
+    }
+  }
 }
 
 // Render a "kaleidoscope" transformation of input_img in output_img.
