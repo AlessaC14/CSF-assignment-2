@@ -118,54 +118,61 @@ void imgproc_grayscale( struct Image *input_img, struct Image *output_img ) {
 //   output_img - pointer to the output Image (which will have
 //                width and height twice the width/height of the
 //                input image)
-void imgproc_rgb( struct Image *input_img, struct Image *output_img ) {
-  // TODO: implement
+void imgproc_rgb(struct Image *input_img, struct Image *output_img) {
+  // Set the dimensions of the output image
   output_img->height = 2 * input_img->height;
   output_img->width = 2 * input_img->width;
 
-  output_img->data = (uint32_t*) malloc(output_img->height * output_img->width * sizeof(uint32_t));
+  // Allocate memory for the output image data
+  output_img->data = (uint32_t *)malloc(output_img->width * output_img->height * sizeof(uint32_t));
   if (output_img->data == NULL) {
-    return; // if memory allocation fails
+    // Handle memory allocation failure
+    return;
   }
-  
-  struct Image *red_image, *green_image, *blue_image;
-  img_init(red_image, input_img->width, input_img->height);
-  img_init(green_image, input_img->width, input_img->height);
-  img_init(blue_image, input_img->width, input_img->height);
 
-  imgproc_red(input_img, red_image);
-  imgproc_red(input_img, green_image);
-  imgproc_red(input_img, blue_image);
+  // Initialize the red, green, and blue images
+  struct Image red_image, green_image, blue_image;
+  img_init(&red_image, input_img->width, input_img->height);
+  img_init(&green_image, input_img->width, input_img->height);
+  img_init(&blue_image, input_img->width, input_img->height);
 
-  
-  for (int j = 0; j < input_img->width; j++) { // copying the original image into the output_img first
+  // Apply the color extraction functions
+  imgproc_red(input_img, &red_image);
+  imgproc_green(input_img, &green_image);
+  imgproc_blue(input_img, &blue_image);
+
+  // Copy the original image (A) to the top-left quadrant
+  for (int j = 0; j < input_img->width; j++) {
     for (int i = 0; i < input_img->height; i++) {
-      output_img->data[i * input_img->width + j] = input_img->data[i * input_img->width + j];
+      output_img->data[i * output_img->width + j] = input_img->data[i * input_img->width + j];
     }
   }
 
-  for (int j = input_img->width; j < output_img->width; j++) { // copying the red image into the output_img first
+  // Copy the red image (B) to the top-right quadrant
+  for (int j = 0; j < input_img->width; j++) {
     for (int i = 0; i < input_img->height; i++) {
-      output_img->data[i * red_image->width + j] = red_image->data[i * red_image->width + (j - red_image->width)];
+      output_img->data[i * output_img->width + (j + input_img->width)] = red_image.data[i * red_image.width + j];
     }
   }
 
-  for (int j = 0; j < input_img->width; j++) { // copying the green image into the output_img first
-    for (int i = input_img->height; i < output_img->height; i++) {
-      output_img->data[i * green_image->width + j] = green_image->data[(i - input_img->height) * green_image->width + j];
+  // Copy the green image (C) to the bottom-left quadrant
+  for (int j = 0; j < input_img->width; j++) {
+    for (int i = 0; i < input_img->height; i++) {
+      output_img->data[(i + input_img->height) * output_img->width + j] = green_image.data[i * green_image.width + j];
     }
   }
 
-  for (int j = input_img->width; j < output_img->width; j++) { // copying the blue image into the output_img first
-    for (int i = input_img->height; i < output_img->height; i++) {
-      output_img->data[i * blue_image->width + j] = blue_image->data[(i - blue_image->height) * blue_image->width + (j - blue_image->width)];
+  // Copy the blue image (D) to the bottom-right quadrant
+  for (int j = 0; j < input_img->width; j++) {
+    for (int i = 0; i < input_img->height; i++) {
+      output_img->data[(i + input_img->height) * output_img->width + (j + input_img->width)] = blue_image.data[i * blue_image.width + j];
     }
   }
 
-  img_cleanup(red_image);
-  img_cleanup(green_image);
-  img_cleanup(blue_image);
-
+  // Clean up the temporary images
+  img_cleanup(&red_image);
+  img_cleanup(&green_image);
+  img_cleanup(&blue_image);
 }
 
 // Render a "faded" version of the input image.
