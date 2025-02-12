@@ -41,7 +41,7 @@ void imgproc_blue( struct Image *input_img, struct Image *output_img ) {
       uint32_t pixel = input_img->data[i * input_img->width + j];
       uint32_t b = (pixel >> 8) & 0xFF; // extracting bits 8 to 15, green component
       uint32_t a = pixel & 0xFF; // extracting bits 0 to 7, alpha component
-      output_img->data[i * input_img->width + j] = (b << 16) | a;
+      output_img->data[i * input_img->width + j] = (b << 8) | a;
     }
   }
 }
