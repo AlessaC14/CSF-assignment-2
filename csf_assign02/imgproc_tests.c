@@ -111,6 +111,17 @@ void test_grayscale_basic( TestObjs *objs );
 void test_fade_basic( TestObjs *objs );
 void test_kaleidoscope_basic( TestObjs *objs );
 // TODO: add prototypes for additional test functions
+void test_rgb_basic( TestObjs *objs );
+void test_grayscale_basic( TestObjs *objs );
+void test_fade_basic( TestObjs *objs );
+void test_kaleidoscope_basic( TestObjs *objs );
+// kaleidoscope tests
+void test_kaleidoscope_even( TestObjs *objs );
+void test_kaleidoscope_odd( TestObjs *objs );
+void test_kaleidoscope_fail( TestObjs *objs );
+void test_helper_functions( TestObjs *objs );
+
+
 
 int main( int argc, char **argv ) {
   // allow the specific test to execute to be specified as the
