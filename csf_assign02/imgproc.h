@@ -102,4 +102,33 @@ void imgproc_red( struct Image *input_img, struct Image *output_img );
 void imgproc_green( struct Image *input_img, struct Image *output_img );
 void imgproc_blue( struct Image *input_img, struct Image *output_img );
 
+//red component
+uint32_t get_r(uint32_t pixel);
+
+//  green component 
+uint32_t get_g(uint32_t pixel);
+
+//blue component
+uint32_t get_b(uint32_t pixel);
+
+// alpha component 
+uint32_t get_a(uint32_t pixel);
+
+// Create  pixel from individual color components
+uint32_t make_pixel(uint32_t r, uint32_t g, uint32_t b, uint32_t a);
+
+//grayscale connversion 
+uint32_t to_grayscale(uint32_t pixel);
+
+// gradient calculation
+int64_t gradient(int64_t x, int64_t n);
+
+// Calculate modified color component for fade
+int64_t modified_color_comp(int64_t t_r, int64_t t_c, uint32_t c);
+
+// Compute array index 
+int32_t compute_index(struct Image *img, int32_t col, int32_t row);
+
+
+
 #endif // IMGPROC_H

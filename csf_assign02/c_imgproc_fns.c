@@ -57,6 +57,49 @@ int modified_color_comp ( int t_r, int t_c, uint32_t c) {
   return c_new;
 }
 
+// Extract red component (bits 24-31) from the pixel
+uint32_t get_r(uint32_t pixel) {
+    return (pixel >> 24) & 0xFF;
+}
+
+// Extract green component (bits 16-23) from the pixel
+uint32_t get_g(uint32_t pixel) {
+    return (pixel >> 16) & 0xFF;
+}
+
+// Extract blue component (bits 8-15) from the pixel
+uint32_t get_b(uint32_t pixel) {
+    return (pixel >> 8) & 0xFF;
+}
+
+// Extract alpha component (bits 0-7) from the pixel
+uint32_t get_a(uint32_t pixel) {
+    return pixel & 0xFF;
+}
+
+//  pixel from individual color components
+uint32_t make_pixel(uint32_t r, uint32_t g, uint32_t b, uint32_t a) {
+    return (r << 24) | (g << 16) | (b << 8) | a;
+}
+
+// Convert pixel to grayscale using the formula:
+// y = (79 * r + 128 * g + 49 * b) / 256
+uint32_t to_grayscale(uint32_t pixel) {
+    uint32_t r = get_r(pixel);
+    uint32_t g = get_g(pixel);
+    uint32_t b = get_b(pixel);
+    uint32_t a = get_a(pixel);
+    
+    uint32_t y = ((79 * r) + (128 * g) + (49 * b)) / 256;
+    return make_pixel(y, y, y, a);
+}
+
+// Compute array index 
+int32_t compute_index(struct Image *img, int32_t col, int32_t row) {
+    return row * img->width + col;
+}
+
+
 // ---- End of helper functions ----
 
 // Convert input pixels to grayscale.
