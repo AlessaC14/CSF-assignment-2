@@ -139,6 +139,12 @@ int main( int argc, char **argv ) {
   TEST( test_fade_basic );
   TEST( test_kaleidoscope_basic );
 
+  //Added tests
+ 
+  TEST( test_kaleidoscope_odd );
+  TEST( test_kaleidoscope_fail );
+  TEST( test_helper_functions );
+
   TEST_FINI();
 }
 
@@ -411,3 +417,83 @@ void test_kaleidoscope_basic( TestObjs *objs ) {
   destroy_img( sq_test_kaleidoscope_expected );
 }
 
+void test_kaleidoscope_odd(TestObjs *objs) {
+    // Create a test image with odd dimensions
+    struct Picture odd_pic = {
+        TEST_COLORS,
+        13, // odd width
+        13, // odd height
+        "rrrrrr       "
+        " ggggg      "
+        "  bbbb      "
+        "   mmm      "
+        "    cc      "
+        "     r      "
+        "            "
+        "            "
+        "            "
+        "            "
+        "            "
+        "            "
+        "            "
+    };
+    struct Image *odd_img = picture_to_img(&odd_pic);
+    struct Image *odd_out = (struct Image *)malloc(sizeof(struct Image));
+    img_init(odd_out, odd_img->width, odd_img->height);
+
+    int result = imgproc_kaleidoscope(odd_img, odd_out);
+    ASSERT(result == 1); // Should succeed even with odd dimensions
+
+    destroy_img(odd_img);
+    destroy_img(odd_out);
+}
+
+void test_kaleidoscope_fail(TestObjs *objs) {
+    // Test with non-square image
+    struct Picture rect_pic = {
+        TEST_COLORS,
+        10, // width
+        12, // height
+        "rrrrrrrrrr"
+        "gggggggggg"
+        "bbbbbbbbbb"
+        "mmmmmmmmmm"
+        "cccccccccc"
+        "rrrrrrrrrr"
+        "gggggggggg"
+        "bbbbbbbbbb"
+        "mmmmmmmmmm"
+        "cccccccccc"
+        "rrrrrrrrrr"
+        "gggggggggg"
+    };
+    struct Image *rect_img = picture_to_img(&rect_pic);
+    struct Image *rect_out = (struct Image *)malloc(sizeof(struct Image));
+    img_init(rect_out, rect_img->width, rect_img->height);
+
+    int result = imgproc_kaleidoscope(rect_img, rect_out);
+    ASSERT(result == 0); // Should fail for non-square image
+
+    destroy_img(rect_img);
+    destroy_img(rect_out);
+}
+
+void test_helper_functions(TestObjs *objs) {
+    // Test pixel manipulation helpers
+    uint32_t test_pixel = 0xFF112233; // RGBA: 255,17,34,51
+    
+    ASSERT(get_r(test_pixel) == 255);
+    ASSERT(get_g(test_pixel) == 17);
+    ASSERT(get_b(test_pixel) == 34);
+    ASSERT(get_a(test_pixel) == 51);
+    
+    // Test make_pixel
+    uint32_t new_pixel = make_pixel(255, 17, 34, 51);
+    ASSERT(new_pixel == test_pixel);
+    
+    // Test compute_index
+    struct Image test_img;
+    test_img.width = 10;
+    test_img.height = 10;
+    ASSERT(compute_index(&test_img, 5, 6) == 65); // 6 * 10 + 5 = 65
+}
