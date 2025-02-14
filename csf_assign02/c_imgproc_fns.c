@@ -48,13 +48,14 @@ void imgproc_blue( struct Image *input_img, struct Image *output_img ) {
 
 // calculates gradient of a pixel wrt to a row or column length for imgproc_fade()
 int64_t gradient(int64_t x, int64_t n) {
-    return 1000000 - square(((2000000000 * x) / (1000000 * n)) - 1000);
+  int64_t value = 1000000 - square(((2000000000 * x) / (1000000 * n)) - 1000);
+  return (value < 0) ? 0 : value; // return 0 if value negative else return value
 }
 
 // calculates modified color component of a pixel for imgproc_fade()
 int64_t modified_color_comp(int64_t t_r, int64_t t_c, uint32_t c) {
     int64_t c_new = (t_r * t_c * c) / 1000000000000;
-    return c_new;
+    return (c_new > 255) ? 255 : (c_new < 0) ? 0 : (uint32_t) c_new; // checking to see if 0 < c_new < 255
 }
 
 // Extract red component (bits 24-31) from the pixel
@@ -110,7 +111,7 @@ int32_t compute_index(struct Image *img, int32_t col, int32_t row) {
 //   output_img - pointer to the output Image (in which the transformed
 //                pixels should be stored)
 void imgproc_grayscale( struct Image *input_img, struct Image *output_img ) {
-  // TODO: implement
+  // TODO: use to_grayscale() in for loop
 
   output_img->width = input_img->width;
   output_img->height = input_img->height;
@@ -241,7 +242,14 @@ void imgproc_fade( struct Image *input_img, struct Image *output_img ) {
 
   for (int j = 0; j < input_img->width; j++) {
     for (int i = 0; i < input_img->height; i++) {
-
+      uint32_t pixel = input_img->data[i * input_img->width + j];
+      uint32_t r = get_r(pixel), g = get_g(pixel), b = get_b(pixel), a = get_a(pixel);
+      int64_t grad_row = gradient(i, input_img->height);
+      int64_t grad_col = gradient(j, input_img->width);
+      uint32_t new_r = modified_color_comp(grad_row, grad_col, r);
+      uint32_t new_g = modified_color_comp(grad_row, grad_col, g);
+      uint32_t new_b = modified_color_comp(grad_row, grad_col, b);
+      output_img->data[i * input_img->width + j] = make_pixel(new_r, new_g, new_b, a);
     }
   }
 }
