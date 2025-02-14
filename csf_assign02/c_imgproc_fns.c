@@ -6,8 +6,8 @@
 
 // TODO: define your helper functions here
 
-int square( int x ) {
-  return x * x;
+int64_t square(int64_t x) {
+    return x * x;
 }
 
 // extracts the red component of an image
@@ -47,14 +47,14 @@ void imgproc_blue( struct Image *input_img, struct Image *output_img ) {
 }
 
 // calculates gradient of a pixel wrt to a row or column length for imgproc_fade()
-int gradient( int x, int n) {
-  return 1000000 - square(((2000000000 * x) / (1000000 * n)) - 1000);
+int64_t gradient(int64_t x, int64_t n) {
+    return 1000000 - square(((2000000000 * x) / (1000000 * n)) - 1000);
 }
 
 // calculates modified color component of a pixel for imgproc_fade()
-int modified_color_comp ( int t_r, int t_c, uint32_t c) {
-  int c_new = (t_r * t_c * c) / 1000000000000;
-  return c_new;
+int64_t modified_color_comp(int64_t t_r, int64_t t_c, uint32_t c) {
+    int64_t c_new = (t_r * t_c * c) / 1000000000000;
+    return c_new;
 }
 
 // Extract red component (bits 24-31) from the pixel
