@@ -130,5 +130,4 @@ int64_t modified_color_comp(int64_t t_r, int64_t t_c, uint32_t c);
 int32_t compute_index(struct Image *img, int32_t col, int32_t row);
 
 
-
 #endif // IMGPROC_H

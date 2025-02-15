@@ -418,34 +418,86 @@ void test_kaleidoscope_basic( TestObjs *objs ) {
 }
 
 void test_kaleidoscope_odd(TestObjs *objs) {
-    // Create a test image with odd dimensions
+    // Input pattern - just wedge A
     struct Picture odd_pic = {
         TEST_COLORS,
         13, // odd width
         13, // odd height
-        "rrrrrr       "
-        " ggggg      "
-        "  bbbb      "
-        "   mmm      "
-        "    cc      "
-        "     r      "
-        "            "
-        "            "
-        "            "
-        "            "
-        "            "
-        "            "
-        "            "
+        "rrrrr        "  // make each line exactly 13 characters
+        "rgggg        "
+        "rgbb         "
+        "rgb          "
+        "rg           "
+        "r            "
+        "             "
+        "             "
+        "             "
+        "             "
+        "             "
+        "             "
+        "             "
     };
+
     struct Image *odd_img = picture_to_img(&odd_pic);
     struct Image *odd_out = (struct Image *)malloc(sizeof(struct Image));
     img_init(odd_out, odd_img->width, odd_img->height);
 
     int result = imgproc_kaleidoscope(odd_img, odd_out);
-    ASSERT(result == 1); // Should succeed even with odd dimensions
+    ASSERT(result == 1);
+
+    // Expected pattern after mirroring
+    struct Picture odd_expected = {
+        TEST_COLORS,
+        13,
+        13,
+        "rrrrr   rrrrr"
+        "rgggg   ggggr"
+        "rgbb     bbgr"
+        "rgb       bgr"
+        "rg         gr"
+        "             "  
+        "             "
+        "             "  
+        "rg         gr"
+        "rgb       bgr"
+        "rgbb     bbgr"
+        "rgggg   ggggr"
+        "rrrrr   rrrrr"
+    };
+
+    struct Image *expected = picture_to_img(&odd_expected);
+
+    printf("Actual output:\n");
+    for(int i = 0; i < 13; i++) {
+        for(int j = 0; j < 13; j++) {
+            int idx = i * 13 + j;
+            uint32_t pixel = odd_out->data[idx];
+            if((pixel & 0xFF000000) == 0xFF000000) printf("r");
+            else if((pixel & 0x00FF0000) == 0x00FF0000) printf("g");
+            else if((pixel & 0x0000FF00) == 0x0000FF00) printf("b");
+            else printf(" ");
+        }
+        printf("\n");
+    }
+
+    printf("\nExpected output:\n");
+    for(int i = 0; i < 13; i++) {
+        for(int j = 0; j < 13; j++) {
+            int idx = i * 13 + j;
+            uint32_t pixel = expected->data[idx];
+            if((pixel & 0xFF000000) == 0xFF000000) printf("r");
+            else if((pixel & 0x00FF0000) == 0x00FF0000) printf("g");
+            else if((pixel & 0x0000FF00) == 0x0000FF00) printf("b");
+            else printf(" ");
+        }
+        printf("\n");
+    }
+
+    ASSERT(images_equal(odd_out, expected));
 
     destroy_img(odd_img);
     destroy_img(odd_out);
+    destroy_img(expected);
 }
 
 void test_kaleidoscope_fail(TestObjs *objs) {
