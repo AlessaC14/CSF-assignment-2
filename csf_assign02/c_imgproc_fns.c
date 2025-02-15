@@ -289,66 +289,63 @@ void imgproc_fade( struct Image *input_img, struct Image *output_img ) {
 //   1 if successful, 0 if the transformation fails because the
 //   width and height of input_img are not the same.
 int imgproc_kaleidoscope(struct Image *input_img, struct Image *output_img) {
-    // first check if image is square
-    if (input_img->width != input_img->height) {
-        return 0;  
+  // first check if image is square
+  if (input_img->width != input_img->height) {
+      return 0;  
+  }
+  
+  output_img->width = input_img->width;
+  output_img->height = input_img->height;
+  
+  int size = input_img->width;
+  // Handling of odd dimensions
+  int effective_size = (size % 2 == 1) ? size + 1 : size;
+  int half = effective_size / 2;
+
+  // Allocate memory for output
+  output_img->data = (uint32_t*) malloc(output_img->height * output_img->width * sizeof(uint32_t));
+  if (output_img->data == NULL) {
+    return 0;  
+  }
+
+  // Process each pixel
+  for (int y = 0; y < size; y++) {
+    for (int x = 0; x < size; x++) {
+      int src_x = x;
+      int src_y = y;
+      
+      // Handle quadrants
+      if (x >= half) {
+        // Mirror horizontally for right half
+        src_x = size - 1 - x;
+      }
+      if (y >= half) {
+        // Mirror vertically for bottom half
+        src_y = size - 1 - y;
+      }
+
+      //diagonal reflection 
+      if (src_y > src_x) {
+        // if it's below the diagonal then swap
+        int temp = src_x;
+        src_x = src_y;
+        src_y = temp;
+      }
+
+      // Ensure we don't access out of bounds 
+      if (src_x >= size || src_y >= size) {
+        src_x = (src_x >= size) ? size - 1 : src_x;
+        src_y = (src_y >= size) ? size - 1 : src_y;
+      }
+
+      // Get source pixel and copy 
+      int src_index = compute_index(input_img, src_x, src_y);
+      int dst_index = compute_index(output_img, x, y);
+      
+      uint32_t pixel = input_img->data[src_index];
+      output_img->data[dst_index] = pixel;
     }
+  }
 
-   
-    output_img->width = input_img->width;
-    output_img->height = input_img->height;
-    
-    int size = input_img->width;
-    // Handling of odd dimensions
-    int effective_size = (size % 2 == 1) ? size + 1 : size;
-    int half = effective_size / 2;
-
-    // Allocate memory for output
-    output_img->data = (uint32_t*) malloc(output_img->height * output_img->width * sizeof(uint32_t));
-    if (output_img->data == NULL) {
-        return 0;  
-    }
-
-    // Process each pixel
-    for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
-            int src_x = x;
-            int src_y = y;
-            
-            // Handle quadrants
-            if (x >= half) {
-                // Mirror horizontally for right half
-                src_x = size - 1 - x;
-            }
-            if (y >= half) {
-                // Mirror vertically for bottom half
-                src_y = size - 1 - y;
-            }
-
-            //diagonal reflection 
-            if (src_y > src_x) {
-                // if it's below the diagonal then swap
-                int temp = src_x;
-                src_x = src_y;
-                src_y = temp;
-            }
-
-            // Ensure we don't access out of bounds 
-            if (src_x >= size || src_y >= size) {
-                
-                src_x = (src_x >= size) ? size - 1 : src_x;
-                src_y = (src_y >= size) ? size - 1 : src_y;
-            }
-
-            // Get source pixel and copy 
-            int src_index = compute_index(input_img, src_x, src_y);
-            int dst_index = compute_index(output_img, x, y);
-            
-           
-            uint32_t pixel = input_img->data[src_index];
-            output_img->data[dst_index] = pixel;
-        }
-    }
-
-    return 1; 
+  return 1; 
 }

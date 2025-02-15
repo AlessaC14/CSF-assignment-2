@@ -387,6 +387,111 @@ void test_fade_basic( TestObjs *objs ) {
   ASSERT( images_equal( smiley_fade_expected, objs->smiley_out ) );
 
   destroy_img( smiley_fade_expected );
+
+  // Test case with minimum alpha values
+  struct Picture min_alpha_pic = {
+    {
+      { ' ', 0x00000000 },
+      { 'a', 0x00000000 },
+      { 'b', 0x00000000 },
+      { 'c', 0x00000000 },
+      { 'd', 0x00000000 },
+      { 'e', 0x00000000 },
+      { 'f', 0x00000000 },
+      { 'g', 0x00000000 },
+      { 'h', 0x00000000 },
+      { 'i', 0x00000000 },
+      { 'j', 0x00000000 },
+      { 'k', 0x00000000 },
+      { 'l', 0x00000000 },
+      { 'm', 0x00000000 },
+      { 'n', 0x00000000 },
+      { 'o', 0x00000000 },
+      { 'p', 0x00000000 },
+      { 'q', 0x00000000 },
+      { 'r', 0x00000000 },
+      { 's', 0x00000000 },
+      { 't', 0x00000000 },
+      { 'u', 0x00000000 },
+      { 'v', 0x00000000 },
+      { 'w', 0x00000000 },
+      { 'x', 0x00000000 },
+      { 'y', 0x00000000 },
+      { 'z', 0x00000000 },
+      { 'A', 0x00000000 },
+      { 'B', 0x00000000 },
+      { 'C', 0x00000000 },
+    },
+    16, 10, // width and height
+    "                "
+    "   i        c   "
+    "  u   y  f   k  "
+    " a            d "
+    " b            v "
+    " j   g    s   w "
+    "  l   rtCh   e  "
+    "   x        q   "
+    "    mnpABfzo    "
+    "                "
+  };
+
+  struct Image *min_alpha_expected = picture_to_img(&min_alpha_pic);
+
+  imgproc_fade(objs->smiley, objs->smiley_out);
+
+  ASSERT(images_equal(min_alpha_expected, objs->smiley_out));
+
+  destroy_img(min_alpha_expected);
+
+  // Test case with varying dimensions
+  struct Picture varying_dim_pic = {
+    {
+      { ' ', 0x000000ff },
+      { 'a', 0x000032ff },
+      { 'b', 0x000039ff },
+      { 'c', 0x000044ff },
+      { 'd', 0x00005dff },
+      { 'e', 0x000095ff },
+      { 'f', 0x0000a0ff },
+      { 'g', 0x0000dbff },
+      { 'h', 0x0000f0ff },
+      { 'i', 0x003737ff },
+      { 'j', 0x003b00ff },
+      { 'k', 0x006363ff },
+      { 'l', 0x006b6bff },
+      { 'm', 0x007a00ff },
+      { 'n', 0x008c00ff },
+      { 'o', 0x008c8cff },
+      { 'p', 0x009900ff },
+      { 'q', 0x00a0a0ff },
+      { 'r', 0x00e500ff },
+      { 's', 0x00efefff },
+      { 't', 0x00f000ff },
+      { 'u', 0x470000ff },
+      { 'v', 0x6b0000ff },
+      { 'w', 0x6f0000ff },
+      { 'x', 0x820082ff },
+      { 'y', 0x990000ff },
+      { 'z', 0x990099ff },
+      { 'A', 0xa00000ff },
+      { 'B', 0xa30000ff },
+      { 'C', 0xf40000ff },
+    },
+    8, 5, // width and height
+    "        "
+    "   i c   "
+    "  u y f  "
+    " a    d  "
+    " b    v  "
+  };
+
+  struct Image *varying_dim_expected = picture_to_img(&varying_dim_pic);
+
+  imgproc_fade(objs->smiley, objs->smiley_out);
+
+  ASSERT(images_equal(varying_dim_expected, objs->smiley_out));
+
+  destroy_img(varying_dim_expected);
 }
 
 void test_kaleidoscope_basic( TestObjs *objs ) {
@@ -469,28 +574,28 @@ void test_kaleidoscope_odd(TestObjs *objs) {
 
     printf("Actual output:\n");
     for(int i = 0; i < 13; i++) {
-        for(int j = 0; j < 13; j++) {
-            int idx = i * 13 + j;
-            uint32_t pixel = odd_out->data[idx];
-            if((pixel & 0xFF000000) == 0xFF000000) printf("r");
-            else if((pixel & 0x00FF0000) == 0x00FF0000) printf("g");
-            else if((pixel & 0x0000FF00) == 0x0000FF00) printf("b");
-            else printf(" ");
-        }
-        printf("\n");
+      for(int j = 0; j < 13; j++) {
+        int idx = i * 13 + j;
+        uint32_t pixel = odd_out->data[idx];
+        if((pixel & 0xFF000000) == 0xFF000000) printf("r");
+        else if((pixel & 0x00FF0000) == 0x00FF0000) printf("g");
+        else if((pixel & 0x0000FF00) == 0x0000FF00) printf("b");
+        else printf(" ");
+      }
+      printf("\n");
     }
 
     printf("\nExpected output:\n");
     for(int i = 0; i < 13; i++) {
-        for(int j = 0; j < 13; j++) {
-            int idx = i * 13 + j;
-            uint32_t pixel = expected->data[idx];
-            if((pixel & 0xFF000000) == 0xFF000000) printf("r");
-            else if((pixel & 0x00FF0000) == 0x00FF0000) printf("g");
-            else if((pixel & 0x0000FF00) == 0x0000FF00) printf("b");
-            else printf(" ");
-        }
-        printf("\n");
+      for(int j = 0; j < 13; j++) {
+        int idx = i * 13 + j;
+        uint32_t pixel = expected->data[idx];
+        if((pixel & 0xFF000000) == 0xFF000000) printf("r");
+        else if((pixel & 0x00FF0000) == 0x00FF0000) printf("g");
+        else if((pixel & 0x0000FF00) == 0x0000FF00) printf("b");
+        else printf(" ");
+      }
+      printf("\n");
     }
 
     ASSERT(images_equal(odd_out, expected));
@@ -501,51 +606,109 @@ void test_kaleidoscope_odd(TestObjs *objs) {
 }
 
 void test_kaleidoscope_fail(TestObjs *objs) {
-    // Test with non-square image
-    struct Picture rect_pic = {
-        TEST_COLORS,
-        10, // width
-        12, // height
-        "rrrrrrrrrr"
-        "gggggggggg"
-        "bbbbbbbbbb"
-        "mmmmmmmmmm"
-        "cccccccccc"
-        "rrrrrrrrrr"
-        "gggggggggg"
-        "bbbbbbbbbb"
-        "mmmmmmmmmm"
-        "cccccccccc"
-        "rrrrrrrrrr"
-        "gggggggggg"
-    };
-    struct Image *rect_img = picture_to_img(&rect_pic);
-    struct Image *rect_out = (struct Image *)malloc(sizeof(struct Image));
-    img_init(rect_out, rect_img->width, rect_img->height);
+  // Test with non-square image
+  struct Picture rect_pic = {
+    TEST_COLORS,
+    10, // width
+    12, // height
+    "rrrrrrrrrr"
+    "gggggggggg"
+    "bbbbbbbbbb"
+    "mmmmmmmmmm"
+    "cccccccccc"
+    "rrrrrrrrrr"
+    "gggggggggg"
+    "bbbbbbbbbb"
+    "mmmmmmmmmm"
+    "cccccccccc"
+    "rrrrrrrrrr"
+    "gggggggggg"
+  };
+  struct Image *rect_img = picture_to_img(&rect_pic);
+  struct Image *rect_out = (struct Image *)malloc(sizeof(struct Image));
+  img_init(rect_out, rect_img->width, rect_img->height);
 
-    int result = imgproc_kaleidoscope(rect_img, rect_out);
-    ASSERT(result == 0); // Should fail for non-square image
+  int result = imgproc_kaleidoscope(rect_img, rect_out);
+  ASSERT(result == 0); // Should fail for non-square image
 
-    destroy_img(rect_img);
-    destroy_img(rect_out);
+  destroy_img(rect_img);
+  destroy_img(rect_out);
 }
 
 void test_helper_functions(TestObjs *objs) {
-    // Test pixel manipulation helpers
-    uint32_t test_pixel = 0xFF112233; // RGBA: 255,17,34,51
-    
-    ASSERT(get_r(test_pixel) == 255);
-    ASSERT(get_g(test_pixel) == 17);
-    ASSERT(get_b(test_pixel) == 34);
-    ASSERT(get_a(test_pixel) == 51);
-    
-    // Test make_pixel
-    uint32_t new_pixel = make_pixel(255, 17, 34, 51);
-    ASSERT(new_pixel == test_pixel);
-    
-    // Test compute_index
-    struct Image test_img;
-    test_img.width = 10;
-    test_img.height = 10;
-    ASSERT(compute_index(&test_img, 5, 6) == 65); // 6 * 10 + 5 = 65
+  // Test pixel manipulation helpers
+  uint32_t test_pixel = 0xFF112233; // RGBA: 255,17,34,51
+  
+  ASSERT(get_r(test_pixel) == 255);
+  ASSERT(get_g(test_pixel) == 17);
+  ASSERT(get_b(test_pixel) == 34);
+  ASSERT(get_a(test_pixel) == 51);
+  
+  // Test make_pixel
+  uint32_t new_pixel = make_pixel(255, 17, 34, 51);
+  ASSERT(new_pixel == test_pixel);
+  
+  // Test compute_index
+  struct Image test_img;
+  test_img.width = 10;
+  test_img.height = 10;
+  ASSERT(compute_index(&test_img, 5, 6) == 65); // 6 * 10 + 5 = 65
+}
+
+// Test the gradient function
+void test_gradient(void) {
+  assert(gradient(0, 10) == 0);
+  assert(gradient(5, 10) == 0);
+  assert(gradient(10, 10) == 0);
+  assert(gradient(2, 10) > 0);
+  assert(gradient(8, 10) > 0);
+}
+
+// Test the modified_color_comp function
+void test_modified_color_comp(void) {
+  assert(modified_color_comp(1000000, 1000000, 255) == 255);
+  assert(modified_color_comp(0, 1000000, 255) == 0);
+  assert(modified_color_comp(1000000, 0, 255) == 0);
+  assert(modified_color_comp(500000, 500000, 255) < 255);
+  assert(modified_color_comp(500000, 500000, 255) > 0);
+}
+
+// Test the get_r function
+void test_get_r(void) {
+  assert(get_r(0xFF000000) == 0xFF);
+  assert(get_r(0x00FF0000) == 0x00);
+}
+
+// Test the get_g function
+void test_get_g(void) {
+  assert(get_g(0x00FF0000) == 0xFF);
+  assert(get_g(0x0000FF00) == 0x00);
+}
+
+// Test the get_b function
+void test_get_b(void) {
+  assert(get_b(0x0000FF00) == 0xFF);
+  assert(get_b(0x000000FF) == 0x00);
+}
+
+// Test the get_a function
+void test_get_a(void) {
+  assert(get_a(0x000000FF) == 0xFF);
+  assert(get_a(0xFF000000) == 0x00);
+}
+
+// Test the make_pixel function
+void test_make_pixel(void) {
+  assert(make_pixel(0xFF, 0x00, 0x00, 0xFF) == 0xFF0000FF);
+  assert(make_pixel(0x00, 0xFF, 0x00, 0xFF) == 0x00FF00FF);
+}
+
+// Test the compute_index function
+void test_compute_index(void) {
+  struct Image img;
+  img_init(&img, 4, 4);
+  assert(compute_index(&img, 0, 0) == 0);
+  assert(compute_index(&img, 1, 0) == 1);
+  assert(compute_index(&img, 0, 1) == 4);
+  img_cleanup(&img);
 }
