@@ -65,8 +65,12 @@ imgproc_rgb:
  */
 	.globl imgproc_grayscale
 imgproc_grayscale:
-	/* TODO: implement */
-	ret
+     pushq %rbp #standard prologue
+	 movq %rsp, %rbp #stack frame
+
+	/* TODO: implement */grayscale logic
+	popq %rrbp #restore stack
+	ret #return to caller
 
 /*
  * Render a "faded" version of the input image.
