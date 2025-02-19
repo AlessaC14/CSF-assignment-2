@@ -88,6 +88,20 @@ imgproc_grayscale:
 	#use our previous function
 	call to_grayscale
 
+	movq %rdx, (%rsi, %rax, 4) #store new pixel in output_img->data[index]
+
+	inc %r13d #j increment (j++)
+	jmp .loops_cols
+.next_row:
+    inc %r12d #i increment (i++)
+	jmp .loop_rows
+
+.done: 
+    popq
+	ret
+
+
+
 
 
 
