@@ -68,7 +68,29 @@ imgproc_grayscale:
      pushq %rbp #standard prologue
 	 movq %rsp, %rbp #stack frame
 
-	/* TODO: implement */grayscale logic
+	/* TODO: implement */grayscale logi
+	movq(%rdi), %rax #Input image width
+	movq 4(%rdi), %rbx #Input height
+
+	xor %12d, %12d #start loop counter (i=0)
+.loop_rows: 
+     cmp %ebx, %r12D #If i >= height break loop
+	 jge.done #close loop
+
+	 xor r%13d, %13d # start inner loop counter (j=0)
+	.loops_cols:
+	    cmp %eax, %r13d #checks if j is >= than width
+		jge .next_row
+    
+	imul %eax, %r12d # i¨*width
+	add %r13d, %eax #(i*width) +j
+
+	#use our previous function
+	call to_grayscale
+
+
+
+
 	popq %rrbp #restore stack
 	ret #return to caller
 
