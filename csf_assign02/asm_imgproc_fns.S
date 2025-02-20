@@ -1,5 +1,3 @@
-
-
 /*
  * x86-64 assembly language implementations of functions
  */
@@ -12,10 +10,175 @@
 #define IMAGE_DATA_OFFSET    8
 
 /*
- * TODO: define your helper functions here.
- * Don't forget to use the .globl directive to make
- * them visible to the test code.
+ * Helper functions implementation
  */
+
+/*
+ * Extract red component (bits 24-31) from the pixel
+ * 
+ * Parameters:
+ *   %edi - pixel value
+ *
+ * Returns:
+ *   %eax - red component (0-255)
+ */
+	.globl get_r
+get_r:
+	movl %edi, %eax       /* Copy pixel to result register */
+	shrl $24, %eax        /* Shift right 24 bits to get red in lowest byte */
+	andl $0xFF, %eax      /* Mask to ensure only lowest byte remains */
+	ret
+
+/*
+ * Extract green component (bits 16-23) from the pixel
+ * 
+ * Parameters:
+ *   %edi - pixel value
+ *
+ * Returns:
+ *   %eax - green component (0-255)
+ */
+	.globl get_g
+get_g:
+	movl %edi, %eax       /* Copy pixel to result register */
+	shrl $16, %eax        /* Shift right 16 bits to get green in lowest byte */
+	andl $0xFF, %eax      /* Mask to ensure only lowest byte remains */
+	ret
+
+/*
+ * Extract blue component (bits 8-15) from the pixel
+ * 
+ * Parameters:
+ *   %edi - pixel value
+ *
+ * Returns:
+ *   %eax - blue component (0-255)
+ */
+	.globl get_b
+get_b:
+	movl %edi, %eax       /* Copy pixel to result register */
+	shrl $8, %eax         /* Shift right 8 bits to get blue in lowest byte */
+	andl $0xFF, %eax      /* Mask to ensure only lowest byte remains */
+	ret
+
+/*
+ * Extract alpha component (bits 0-7) from the pixel
+ * 
+ * Parameters:
+ *   %edi - pixel value
+ *
+ * Returns:
+ *   %eax - alpha component (0-255)
+ */
+	.globl get_a
+get_a:
+	movl %edi, %eax       /* Copy pixel to result register */
+	andl $0xFF, %eax      /* Mask to ensure only lowest byte remains */
+	ret
+
+/*
+ * Create pixel from individual color components
+ * 
+ * Parameters:
+ *   %edi - red component (0-255)
+ *   %esi - green component (0-255)
+ *   %edx - blue component (0-255)
+ *   %ecx - alpha component (0-255)
+ *
+ * Returns:
+ *   %eax - combined RGBA pixel
+ */
+	.globl make_pixel
+make_pixel:
+	movl %edi, %eax       /* Start with red value */
+	shll $8, %eax         /* Shift left 8 bits to make room for green */
+	orl %esi, %eax        /* Add green value */
+	shll $8, %eax         /* Shift left 8 bits to make room for blue */
+	orl %edx, %eax        /* Add blue value */
+	shll $8, %eax         /* Shift left 8 bits to make room for alpha */
+	orl %ecx, %eax        /* Add alpha value */
+	ret
+
+/*
+ * Convert pixel to grayscale using formula:
+ * y = (79 * r + 128 * g + 49 * b) / 256
+ * 
+ * Parameters:
+ *   %edi - RGBA pixel
+ *
+ * Returns:
+ *   %eax - grayscale pixel with same alpha
+ */
+	.globl to_grayscale
+to_grayscale:
+	/* Save callee-saved registers */
+	pushq %rbp
+	movq %rsp, %rbp
+	pushq %rbx            /* Save rbx as we'll use it */
+	pushq %r12            /* Save r12 as we'll use it */
+	
+	/* Save original pixel */
+	movl %edi, %r12d
+	
+	/* Get red component */
+	call get_r
+	movl %eax, %ebx       /* Save red in ebx */
+	
+	/* Get green component */
+	movl %r12d, %edi
+	call get_g
+	movl %eax, %r10d      /* Save green in r10d */
+	
+	/* Get blue component */
+	movl %r12d, %edi
+	call get_b
+	movl %eax, %r11d      /* Save blue in r11d */
+	
+	/* Get alpha component */
+	movl %r12d, %edi
+	call get_a
+	movl %eax, %r12d      /* Save alpha in r12d */
+	
+	/* Calculate y = (79 * r + 128 * g + 49 * b) / 256 */
+	imull $79, %ebx, %ebx   /* 79 * red */
+	imull $128, %r10d, %r10d/* 128 * green */
+	imull $49, %r11d, %r11d /* 49 * blue */
+	
+	addl %r10d, %ebx        /* Add green component */
+	addl %r11d, %ebx        /* Add blue component */
+	shrl $8, %ebx           /* Divide by 256 */
+	
+	/* Create new grayscale pixel */
+	movl %ebx, %edi       /* Set red to y */
+	movl %ebx, %esi       /* Set green to y */
+	movl %ebx, %edx       /* Set blue to y */
+	movl %r12d, %ecx      /* Set original alpha */
+	call make_pixel
+	
+	/* Restore callee-saved registers */
+	popq %r12
+	popq %rbx
+	popq %rbp
+	ret
+
+/*
+ * Compute index in pixel array for a given column and row
+ *
+ * Parameters:
+ *   %rdi - pointer to Image struct
+ *   %esi - column index
+ *   %edx - row index
+ *
+ * Returns:
+ *   %eax - computed index (row * width + col)
+ */
+	.globl compute_index
+compute_index:
+	movl %edx, %eax       /* Start with row */
+	imull (%rdi), %eax    /* Multiply by width */
+	addl %esi, %eax       /* Add column */
+	ret
+
 
 /*
  * Implementations of API functions
@@ -65,81 +228,50 @@ imgproc_rgb:
  *   %rdi - pointer to original struct Image
  *   %rsi - pointer to output struct Image
  */
-	    .globl imgproc_grayscale
-imgproc_grayscale:
-    # Prologue
-    pushq %rbp           # Save old base pointer
-    movq %rsp, %rbp      # Create stack frame
-    pushq %r12           # Save callee-saved registers
-    pushq %r13
-    pushq %r14
-    pushq %r15
-
-    movq %rdi, %r14      # r14 = input_img pointer
-    movq %rsi, %r15      # r15 = output_img pointer
-
-    movl (%r14), %r12d   # r12 = width
-    movl 4(%r14), %r13d  # r13 = height
-
-    xor %r8d, %r8d       # i = 0 (row counter)
-.loop_rows: 
-    cmp %r13d, %r8d      # if i >= height, exit loop
-    jge .done
-
-    xor %r9d, %r9d       # j = 0 (column counter)
-.loops_cols:
-    cmp %r12d, %r9d      # if j >= width, go to next row
-    jge .next_row
-
-    # Compute index = (i * width) + j
-    imul %r12d, %r8d, %eax  # i * width
-    add %r9d, %eax          # (i * width) + j
-
-    # Load pixel from input image
-    movl (%r14, %rax, 4), %edx  # pixel = input_img->data[index]
-
-    # Extract R, G, B values
-    movl %edx, %ecx     # Copy pixel 
-    shr $24, %ecx       # Extract Red
-    movl %edx, %ebx     # Copy pixel 
-    shr $16, %ebx
-    and $0xFF, %ebx     # Extract green
-    movl %edx, %edi     # Copy pixel 
-    shr $8, %edi
-    and $0xFF, %edi     # Extract Blue
-
-    # Compute grayscale value y = (79 * R + 128 * G + 49 * B) / 256
-    imul $79, %ecx, %ecx  # 79 * R
-    imul $128, %ebx, %ebx # 128 * G
-    imul $49, %edi, %edi  # 49 * B
-    add %ebx, %ecx        # (79 * R) + (128 * G)
-    add %edi, %ecx        # + (49 * B)
-    shr $8, %ecx          # Diviision by 256
-
-    # Preserve alpha
-    and $0xFF, %edx       # Extract alpha
-    shl $24, %edx         # Move alpha back
-    shl $16, %ecx         # Shift grayscale value to red position
-    or %ecx, %edx         # merge Red
-    shl $8, %ecx
-    or %ecx, %edx         # Merge green and blue
-
-    # Store new grayscale pixel in output_img
-    movl %edx, (%r15, %rax, 4)
-
-    inc %r9d             # j++
-    jmp .loops_cols
-
-.next_row:
-    inc %r8d             # i++
-    jmp .loop_rows
-
-.done:
-    # Restore callee-saved registers
-    popq %r15
-    popq %r14
-    popq %r13
-    popq %r12
+	    .globl to_grayscale
+to_grayscale:
+    # Input: %edi = pixel
+    # Output: %eax = grayscale pixel
+    
+    pushq %rbp
+    movq %rsp, %rbp
+    pushq %rbx                # Save callee-saved register
+    
+    # Extract components using helper functions
+    movl %edi, %ebx           # Save original pixel
+    
+    call get_r                # Get red component in %eax
+    movl %eax, %r8d           # Save red in %r8d
+    
+    movl %ebx, %edi
+    call get_g                # Get green component in %eax
+    movl %eax, %r9d           # Save green in %r9d
+    
+    movl %ebx, %edi
+    call get_b                # Get blue component in %eax
+    movl %eax, %r10d          # Save blue in %r10d
+    
+    movl %ebx, %edi
+    call get_a                # Get alpha component in %eax
+    movl %eax, %r11d          # Save alpha in %r11d
+    
+    # Calculate grayscale: y = (79*r + 128*g + 49*b)/256
+    imull $79, %r8d, %r8d     # 79 * r
+    imull $128, %r9d, %r9d    # 128 * g
+    imull $49, %r10d, %r10d   # 49 * b
+    
+    addl %r9d, %r8d           # r8d = 79*r + 128*g
+    addl %r10d, %r8d          # r8d = 79*r + 128*g + 49*b
+    shrl $8, %r8d             # Divide by 256
+    
+    # Create final pixel using make_pixel
+    movl %r8d, %edi           # r (grayscale value)
+    movl %r8d, %esi           # g (same grayscale value)
+    movl %r8d, %edx           # b (same grayscale value)
+    movl %r11d, %ecx          # a (original alpha)
+    call make_pixel           # Result in %eax
+    
+    popq %rbx                 # Restore callee-saved register
     popq %rbp
     ret
 
