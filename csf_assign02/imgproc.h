@@ -6,6 +6,9 @@
 
 #include "image.h" // for struct Image and related functions
 
+#include <stdint.h>
+extern uint32_t to_grayscale(uint32_t pixel);
+
 // Convert input pixels to grayscale.
 // This transformation always succeeds.
 //
