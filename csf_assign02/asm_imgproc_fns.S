@@ -65,48 +65,43 @@ imgproc_rgb:
  */
 	.globl imgproc_grayscale
 imgproc_grayscale:
-     pushq %rbp #standard prologue
-	 movq %rsp, %rbp #stack frame
+    pushq %rbp         # standard prologue
+    movq %rsp, %rbp    # create stack frame
 
-	/* TODO: implement */grayscale logi
-	movq(%rdi), %rax #Input image width
-	movq 4(%rdi), %rbx #Input height
+    # TODO: implement grayscale logic
+    movq (%rdi), %rax  # Load input image width
+    movq 4(%rdi), %rbx # Load input image height
 
-	xor %12d, %12d #start loop counter (i=0)
+    xor %r12, %r12     # loop counter (i = 0)
 .loop_rows: 
-     cmp %ebx, %r12D #If i >= height break loop
-	 jge.done #close loop
+    cmp %ebx, %r12d     # checl if i >= height, break loop
+    jge .done          # end loop
 
-	 xor r%13d, %13d # start inner loop counter (j=0)
-	.loops_cols:
-	    cmp %eax, %r13d #checks if j is >= than width
-		jge .next_row
-    
-	imul %eax, %r12d # i¨*width
-	add %r13d, %eax #(i*width) +j
+    xor %r13, %r13     # start inner loop counter (j = 0)
+.loops_cols:
+    cmp %eax, %r13d    # If j >= width to next row
+    jge .next_row
 
-	#use our previous function
-	call to_grayscale
+    imul %r12, %rax    # i * width
+    add %r13, %rax     # (i * width) + j
 
-	movq %rdx, (%rsi, %rax, 4) #store new pixel in output_img->data[index]
+    # Call grayscale function
+    mov %eax, %edi     # Move index (i * width + j) into %rdi
+    call to_grayscale
 
-	inc %r13d #j increment (j++)
-	jmp .loops_cols
+    movq %rdx, (%rsi, %rax, 4) # Store new pixel in output_img->data[index]
+
+    inc %r13           # j increment (j++)
+    jmp .loops_cols
+
 .next_row:
-    inc %r12d #i increment (i++)
-	jmp .loop_rows
+    inc %r12           # i incremen (i++)
+    jmp .loop_rows
 
 .done: 
-    popq
-	ret
+    popq %rbp          # Restore stack
+    ret                # Return caller
 
-
-
-
-
-
-	popq %rrbp #restore stack
-	ret #return to caller
 
 /*
  * Render a "faded" version of the input image.
