@@ -234,7 +234,7 @@ imgproc_grayscale:
 	pushq %rbp                /* Save old base pointer */
 	movq %rsp, %rbp           /* Set up new stack frame */
 	subq $16, %rsp            /* Align stack and reserve space for local vars */
-	pushq %r12                /* Save callee-saved registers */
+	pushq %r12                /* Save callee saved registers */
 	pushq %r13
 	pushq %r14
 	pushq %r15
@@ -259,19 +259,19 @@ imgproc_grayscale:
 	movq %rax, %rdi           /* Size to allocate */
 	call malloc
 	testq %rax, %rax          /* Check if malloc returned NULL */
-	je .grayscale_done        /* If NULL, exit function */
+	je .grayscale_done        /* If nill exit function */
 	
 	/* Store data pointer */
 	movq %rax, 8(%r15)        /* output_img->data = allocated memory */
 	
 	/* Initialize loop counters */
-	xorl %r12d, %r12d         /* i = 0 (row counter) */
+	xorl %r12d, %r12d         /* i = 0 (start row counter) */
 	
 .grayscale_row_loop:
 	cmpl 4(%r14), %r12d       /* Compare i with height */
 	jge .grayscale_done       /* If i >= height, done */
 	
-	xorl %r13d, %r13d         /* j = 0 (column counter) */
+	xorl %r13d, %r13d         /* j = 0 (startcolumn counter) */
 	
 .grayscale_col_loop:
 	cmpl (%r14), %r13d        /* Compare j with width */
@@ -311,9 +311,16 @@ imgproc_grayscale:
 	popq %r14
 	popq %r13
 	popq %r12
-	addq $16, %rsp            /* Clean up stack frame */
+	addq $16, %rsp            /* Clean up  frame */
 	popq %rbp
 	ret
+
+/*
+ * Stub implementation for imgproc_fade (to be implemented )
+ */
+.globl imgproc_fade
+imgproc_fade:
+    ret
 
 /*
  * Render a "kaleidoscope" transformation of input_img in output_img.
