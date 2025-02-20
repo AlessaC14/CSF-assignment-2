@@ -1,3 +1,5 @@
+
+
 /*
  * x86-64 assembly language implementations of functions
  */
@@ -63,62 +65,83 @@ imgproc_rgb:
  *   %rdi - pointer to original struct Image
  *   %rsi - pointer to output struct Image
  */
-	.globl imgproc_grayscale
+	    .globl imgproc_grayscale
 imgproc_grayscale:
-    pushq %rbp         # standard prologue
-    movq %rsp, %rbp    # create stack frame
+    # Prologue
+    pushq %rbp           # Save old base pointer
+    movq %rsp, %rbp      # Create stack frame
+    pushq %r12           # Save callee-saved registers
+    pushq %r13
+    pushq %r14
+    pushq %r15
 
-    # TODO: implement grayscale logic
-    movq (%rdi), %rax  # Load input image width
-    movq 4(%rdi), %rbx # Load input image height
+    movq %rdi, %r14      # r14 = input_img pointer
+    movq %rsi, %r15      # r15 = output_img pointer
 
-    xor %r12, %r12     # loop counter (i = 0)
+    movl (%r14), %r12d   # r12 = width
+    movl 4(%r14), %r13d  # r13 = height
+
+    xor %r8d, %r8d       # i = 0 (row counter)
 .loop_rows: 
-    cmp %ebx, %r12d     # checl if i >= height, break loop
-    jge .done          # end loop
+    cmp %r13d, %r8d      # if i >= height, exit loop
+    jge .done
 
-    xor %r13, %r13     # start inner loop counter (j = 0)
+    xor %r9d, %r9d       # j = 0 (column counter)
 .loops_cols:
-    cmp %eax, %r13d    # If j >= width to next row
+    cmp %r12d, %r9d      # if j >= width, go to next row
     jge .next_row
 
-    imul %r12, %rax    # i * width
-    add %r13, %rax     # (i * width) + j
+    # Compute index = (i * width) + j
+    imul %r12d, %r8d, %eax  # i * width
+    add %r9d, %eax          # (i * width) + j
 
-    # Call grayscale function
-    mov %eax, %edi     # Move index (i * width + j) into %rdi
-    call to_grayscale
+    # Load pixel from input image
+    movl (%r14, %rax, 4), %edx  # pixel = input_img->data[index]
 
-    movq %rdx, (%rsi, %rax, 4) # Store new pixel in output_img->data[index]
+    # Extract R, G, B values
+    movl %edx, %ecx     # Copy pixel 
+    shr $24, %ecx       # Extract Red
+    movl %edx, %ebx     # Copy pixel 
+    shr $16, %ebx
+    and $0xFF, %ebx     # Extract green
+    movl %edx, %edi     # Copy pixel 
+    shr $8, %edi
+    and $0xFF, %edi     # Extract Blue
 
-    inc %r13           # j increment (j++)
+    # Compute grayscale value y = (79 * R + 128 * G + 49 * B) / 256
+    imul $79, %ecx, %ecx  # 79 * R
+    imul $128, %ebx, %ebx # 128 * G
+    imul $49, %edi, %edi  # 49 * B
+    add %ebx, %ecx        # (79 * R) + (128 * G)
+    add %edi, %ecx        # + (49 * B)
+    shr $8, %ecx          # Diviision by 256
+
+    # Preserve alpha
+    and $0xFF, %edx       # Extract alpha
+    shl $24, %edx         # Move alpha back
+    shl $16, %ecx         # Shift grayscale value to red position
+    or %ecx, %edx         # merge Red
+    shl $8, %ecx
+    or %ecx, %edx         # Merge green and blue
+
+    # Store new grayscale pixel in output_img
+    movl %edx, (%r15, %rax, 4)
+
+    inc %r9d             # j++
     jmp .loops_cols
 
 .next_row:
-    inc %r12           # i incremen (i++)
+    inc %r8d             # i++
     jmp .loop_rows
 
-.done: 
-    popq %rbp          # Restore stack
-    ret                # Return caller
-
-
-/*
- * Render a "faded" version of the input image.
- *
- * See the assignment description for an explanation of how this transformation
- * should work.
- *
- * This transformation always succeeds.
- *
- * Parameters:
- *   %rdi - pointer to the input Image
- *   %rsi - pointer to the output Image
- */
-	.globl imgproc_fade
-imgproc_fade:
-	/* TODO: implement */
-	ret
+.done:
+    # Restore callee-saved registers
+    popq %r15
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rbp
+    ret
 
 /*
  * Render a "kaleidoscope" transformation of input_img in output_img.
