@@ -228,52 +228,92 @@ imgproc_rgb:
  *   %rdi - pointer to original struct Image
  *   %rsi - pointer to output struct Image
  */
-	    .globl to_grayscale
-to_grayscale:
-    # Input: %edi = pixel
-    # Output: %eax = grayscale pixel
-    
-    pushq %rbp
-    movq %rsp, %rbp
-    pushq %rbx                # Save callee-saved register
-    
-    # Extract components using helper functions
-    movl %edi, %ebx           # Save original pixel
-    
-    call get_r                # Get red component in %eax
-    movl %eax, %r8d           # Save red in %r8d
-    
-    movl %ebx, %edi
-    call get_g                # Get green component in %eax
-    movl %eax, %r9d           # Save green in %r9d
-    
-    movl %ebx, %edi
-    call get_b                # Get blue component in %eax
-    movl %eax, %r10d          # Save blue in %r10d
-    
-    movl %ebx, %edi
-    call get_a                # Get alpha component in %eax
-    movl %eax, %r11d          # Save alpha in %r11d
-    
-    # Calculate grayscale: y = (79*r + 128*g + 49*b)/256
-    imull $79, %r8d, %r8d     # 79 * r
-    imull $128, %r9d, %r9d    # 128 * g
-    imull $49, %r10d, %r10d   # 49 * b
-    
-    addl %r9d, %r8d           # r8d = 79*r + 128*g
-    addl %r10d, %r8d          # r8d = 79*r + 128*g + 49*b
-    shrl $8, %r8d             # Divide by 256
-    
-    # Create final pixel using make_pixel
-    movl %r8d, %edi           # r (grayscale value)
-    movl %r8d, %esi           # g (same grayscale value)
-    movl %r8d, %edx           # b (same grayscale value)
-    movl %r11d, %ecx          # a (original alpha)
-    call make_pixel           # Result in %eax
-    
-    popq %rbx                 # Restore callee-saved register
-    popq %rbp
-    ret
+	.globl imgproc_grayscale
+imgproc_grayscale:
+	/* Prologue */
+	pushq %rbp                /* Save old base pointer */
+	movq %rsp, %rbp           /* Set up new stack frame */
+	subq $16, %rsp            /* Align stack and reserve space for local vars */
+	pushq %r12                /* Save callee-saved registers */
+	pushq %r13
+	pushq %r14
+	pushq %r15
+	pushq %rbx
+	
+	/* Store parameters in callee-saved registers */
+	movq %rdi, %r14           /* r14 = input_img */
+	movq %rsi, %r15           /* r15 = output_img */
+	
+	/* Copy dimensions */
+	movl (%r14), %eax         /* Get input width */
+	movl %eax, (%r15)         /* Set output width */
+	movl 4(%r14), %eax        /* Get input height */
+	movl %eax, 4(%r15)        /* Set output height */
+	
+	/* Calculate size for memory allocation */
+	imull 4(%r15), %eax       /* width * height */
+	movl %eax, %ebx           /* Save total pixels */
+	shlq $2, %rax             /* Multiply by 4 (sizeof uint32_t) */
+	
+	/* Allocate memory */
+	movq %rax, %rdi           /* Size to allocate */
+	call malloc
+	testq %rax, %rax          /* Check if malloc returned NULL */
+	je .grayscale_done        /* If NULL, exit function */
+	
+	/* Store data pointer */
+	movq %rax, 8(%r15)        /* output_img->data = allocated memory */
+	
+	/* Initialize loop counters */
+	xorl %r12d, %r12d         /* i = 0 (row counter) */
+	
+.grayscale_row_loop:
+	cmpl 4(%r14), %r12d       /* Compare i with height */
+	jge .grayscale_done       /* If i >= height, done */
+	
+	xorl %r13d, %r13d         /* j = 0 (column counter) */
+	
+.grayscale_col_loop:
+	cmpl (%r14), %r13d        /* Compare j with width */
+	jge .grayscale_next_row   /* If j >= width, next row */
+	
+	/* Calculate index = i * width + j */
+	movq %r14, %rdi           /* input_img pointer */
+	movl %r13d, %esi          /* column (j) */
+	movl %r12d, %edx          /* row (i) */
+	call compute_index
+	movl %eax, -4(%rbp)       /* Store index in local variable */
+	
+	/* Get pixel from input image */
+	movq 8(%r14), %rcx        /* Get input data pointer */
+	movl -4(%rbp), %eax       /* Get index */
+	movl (%rcx,%rax,4), %edi  /* Load pixel value */
+	
+	/* Convert to grayscale */
+	call to_grayscale
+	
+	/* Store result in output image */
+	movq 8(%r15), %rcx        /* Get output data pointer */
+	movl -4(%rbp), %edx       /* Get index */
+	movl %eax, (%rcx,%rdx,4)  /* Store grayscale pixel */
+	
+	incl %r13d                /* j++ */
+	jmp .grayscale_col_loop   /* Continue column loop */
+	
+.grayscale_next_row:
+	incl %r12d                /* i++ */
+	jmp .grayscale_row_loop   /* Continue row loop */
+	
+.grayscale_done:
+	/* Epilogue */
+	popq %rbx                 /* Restore callee-saved registers */
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	addq $16, %rsp            /* Clean up stack frame */
+	popq %rbp
+	ret
 
 /*
  * Render a "kaleidoscope" transformation of input_img in output_img.
