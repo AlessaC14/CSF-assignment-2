@@ -215,7 +215,231 @@ compute_index:
  */
 	.globl imgproc_rgb
 imgproc_rgb:
-	/* TODO: implement */
+	#---------------------------------------------------------------
+	# Prologue: Set up an ABI-compliant stack frame and reserve 48 bytes
+	# for local variables:
+	#   -4(%rbp)   : red component (32-bit)
+	#   -8(%rbp)   : green component
+	#   -12(%rbp)  : blue component
+	#   -16(%rbp)  : alpha component
+	#   -20(%rbp)  : original pixel value (32-bit) for quadrant A
+	#   -24(%rbp)  : temporary storage for quadrant B index (in pixels)
+	#   -28(%rbp)  : temporary storage for quadrant C index (in pixels)
+	#   -32(%rbp)  : temporary storage for quadrant D index (in pixels)
+	#---------------------------------------------------------------
+	pushq   %rbp
+	movq    %rsp, %rbp
+	subq    $48, %rsp
+
+	# Save callee-saved registers: rbx, r12, r13, r14, r15
+	pushq   %rbx
+	pushq   %r12
+	pushq   %r13
+	pushq   %r14
+	pushq   %r15
+
+	# Parameters:
+	#   %rdi = pointer to input Image
+	#   %rsi = pointer to output Image
+	movq    %rdi, %r14        # r14 = input_img
+	movq    %rsi, %r15        # r15 = output_img
+
+	#---------------------------------------------------------------
+	# Set new dimensions:
+	# output width = 2 * input width; output height = 2 * input height.
+	# The struct Image:
+	#   offset 0: width (int32_t)
+	#   offset 4: height (int32_t)
+	#   offset 8: data pointer (uint32_t *)
+	#---------------------------------------------------------------
+	movl    0(%r14), %eax     # eax = input width
+	movl    %eax, %r12d       # r12d = input width (save for later)
+	imul    $2, %eax          # eax = 2 * input width
+	movl    %eax, 0(%r15)     # output_img->width = new width
+
+	movl    4(%r14), %eax     # eax = input height
+	movl    %eax, %r13d       # r13d = input height (save for later)
+	imul    $2, %eax          # eax = 2 * input height
+	movl    %eax, 4(%r15)     # output_img->height = new height
+
+	# Save new width in rbx for use in output index calculations.
+	movl    0(%r15), %ebx     # ebx = new width
+
+	#---------------------------------------------------------------
+	# Allocate memory for the output image:
+	# Total pixels = new_width * new_height; each pixel is 4 bytes.
+	#---------------------------------------------------------------
+	movl    0(%r15), %eax     # eax = new width
+	imul    4(%r15), %eax     # eax = new width * new height
+	shll    $2, %eax          # eax = total bytes required
+	movq    %rax, %rdi        # argument for malloc
+	call    malloc
+	testq   %rax, %rax
+	je      .imgproc_rgb_done    # if malloc returned NULL, exit
+	movq    %rax, 8(%r15)     # output_img->data = pointer from malloc
+
+	# Load pointers:
+	movq    8(%r14), %r8      # r8 = input_img->data
+	movq    8(%r15), %r9      # r9 = output_img->data
+
+	#---------------------------------------------------------------
+	# Outer loop: iterate over rows of input image (row index i in r10d)
+	#---------------------------------------------------------------
+	xorl    %r10d, %r10d      # r10d = 0 (i = 0)
+.rgb_row_loop:
+	cmpl    %r13d, %r10d      # Compare i with input height
+	jge     .imgproc_rgb_done # if i >= input height, done
+
+	#---------------------------------------------------------------
+	# Inner loop: iterate over columns of input image (column index j in r11d)
+	#---------------------------------------------------------------
+	xorl    %r11d, %r11d      # r11d = 0 (j = 0)
+.rgb_col_loop:
+	cmpl    %r12d, %r11d      # Compare j with input width
+	jge     .rgb_next_row     # if j >= input width, next row
+
+	#---------------------------------------------------------------
+	# Compute input pixel index = i * input_width + j.
+	# Then compute byte offset = index * 4.
+	#---------------------------------------------------------------
+	movl    %r10d, %eax       # eax = i
+	imull   %r12d, %eax       # eax = i * input_width
+	addl    %r11d, %eax       # eax = i * input_width + j
+	# For input pixel, multiply index by 4:
+	movl    %eax, %edx        # edx = index (in pixels)
+	shll    $2, %edx         # edx = index * 4 (byte offset)
+	# Load input pixel from input image data.
+	movl    (%r8, %rdx, 1), %ecx  # ecx = input pixel
+	# Save original pixel for quadrant A.
+	movl    %ecx, -20(%rbp)
+
+	#---------------------------------------------------------------
+	# Extract color components via helper functions.
+	# Save red at -4(%rbp), green at -8(%rbp), blue at -12(%rbp),
+	# alpha at -16(%rbp).
+	#---------------------------------------------------------------
+	# Get red:
+	pushq   %rdi
+	movl    %ecx, %edi
+	call    get_r           # returns red in %eax
+	movl    %eax, -4(%rbp)
+	popq    %rdi
+
+	# Get green:
+	pushq   %rdi
+	movl    %ecx, %edi
+	call    get_g           # returns green in %eax
+	movl    %eax, -8(%rbp)
+	popq    %rdi
+
+	# Get blue:
+	pushq   %rdi
+	movl    %ecx, %edi
+	call    get_b           # returns blue in %eax
+	movl    %eax, -12(%rbp)
+	popq    %rdi
+
+	# Get alpha:
+	pushq   %rdi
+	movl    %ecx, %edi
+	call    get_a           # returns alpha in %eax
+	movl    %eax, -16(%rbp)
+	popq    %rdi
+
+	#---------------------------------------------------------------
+	# Quadrant A (upper-left): Copy original pixel.
+	# Output coordinate: (j, i)
+	# Compute index_A = i * new_width + j.
+	#---------------------------------------------------------------
+	movl    %r10d, %eax       # eax = i
+	imull   %ebx, %eax        # eax = i * new_width (new width in ebx)
+	addl    %r11d, %eax       # eax = i * new_width + j
+	# Use scale factor 4 to compute byte offset in output.
+	# Store the original pixel (from -20(%rbp)) into output.
+	movl    -20(%rbp), %edx   # edx = original pixel
+	movl    %edx, (%r9, %rax, 4)
+
+	#---------------------------------------------------------------
+	# Quadrant B (upper-right): Only red channel.
+	# Output coordinate: (j + input_width, i)
+	# Compute index_B = i * new_width + (j + input_width).
+	#---------------------------------------------------------------
+	movl    %r10d, %eax       # eax = i
+	imull   %ebx, %eax        # eax = i * new_width
+	addl    %r11d, %eax       # eax = i * new_width + j
+	addl    %r12d, %eax       # add input width -> index_B
+	# Save index_B in local variable.
+	movl    %eax, -24(%rbp)
+	# Build pixel for quadrant B: (red, 0, 0, alpha)
+	movl    -4(%rbp), %edi    # red component in edi
+	movl    $0, %esi          # green = 0
+	movl    $0, %edx          # blue = 0
+	movl    -16(%rbp), %ecx   # alpha in ecx
+	call    make_pixel        # returns pixel in %eax
+	# Retrieve index_B and store pixel.
+	movl    -24(%rbp), %edx   # edx = index_B (in pixels)
+	movl    %eax, (%r9, %rdx, 4)  # store quadrant B pixel
+
+	#---------------------------------------------------------------
+	# Quadrant C (lower-left): Only green channel.
+	# Output coordinate: (j, i + input_height)
+	# Compute index_C = (i + input_height) * new_width + j.
+	#---------------------------------------------------------------
+	movl    %r10d, %eax       # eax = i
+	addl    %r13d, %eax       # eax = i + input_height
+	imull   %ebx, %eax        # eax = (i + input_height) * new_width
+	addl    %r11d, %eax       # add j -> index_C
+	movl    %eax, -28(%rbp)   # save index_C
+	# Build pixel for quadrant C: (0, green, 0, alpha)
+	movl    $0, %edi          # red = 0
+	movl    -8(%rbp), %esi    # green component
+	movl    $0, %edx          # blue = 0
+	movl    -16(%rbp), %ecx   # alpha
+	call    make_pixel        # returns pixel in %eax
+	# Retrieve index_C and store pixel.
+	movl    -28(%rbp), %edx   # edx = index_C (in pixels)
+	movl    %eax, (%r9, %rdx, 4)  # store quadrant C pixel
+
+	#---------------------------------------------------------------
+	# Quadrant D (lower-right): Only blue channel.
+	# Output coordinate: (j + input_width, i + input_height)
+	# Compute index_D = (i + input_height) * new_width + (j + input_width).
+	#---------------------------------------------------------------
+	movl    %r10d, %eax       # eax = i
+	addl    %r13d, %eax       # eax = i + input_height
+	imull   %ebx, %eax        # eax = (i + input_height) * new_width
+	addl    %r11d, %eax       # add j
+	addl    %r12d, %eax       # add input width -> index_D
+	movl    %eax, -32(%rbp)   # save index_D
+	# Build pixel for quadrant D: (0, 0, blue, alpha)
+	movl    $0, %edi          # red = 0
+	movl    $0, %esi          # green = 0
+	movl    -12(%rbp), %edx   # blue component
+	movl    -16(%rbp), %ecx   # alpha
+	call    make_pixel        # returns pixel in %eax
+	# Retrieve index_D and store pixel.
+	movl    -32(%rbp), %edx   # edx = index_D (in pixels)
+	movl    %eax, (%r9, %rdx, 4)  # store quadrant D pixel
+
+	#---------------------------------------------------------------
+	# End inner loop: increment column index (j).
+	incl    %r11d
+	jmp     .rgb_col_loop
+
+.rgb_next_row:
+	# End of row: increment row index (i) and restart inner loop.
+	incl    %r10d
+	jmp     .rgb_row_loop
+
+.imgproc_rgb_done:
+	# Epilogue: restore registers and stack frame.
+	addq    $48, %rsp
+	popq    %r15
+	popq    %r14
+	popq    %r13
+	popq    %r12
+	popq    %rbx
+	popq    %rbp
 	ret
 
 /*
