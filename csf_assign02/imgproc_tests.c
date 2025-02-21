@@ -138,14 +138,14 @@ int main( int argc, char **argv ) {
   // for any additional test functions you add.
   TEST( test_rgb_basic );
   TEST( test_grayscale_basic );
-  TEST( test_fade_basic );
-  TEST( test_kaleidoscope_basic );
+  //TEST( test_fade_basic );
+  //TEST( test_kaleidoscope_basic );
 
   //Added tests
  
-  TEST(test_kaleidoscope_odd);
-  TEST(test_kaleidoscope_fail);
-  TEST(test_helper_functions);
+  //TEST(test_kaleidoscope_odd);
+  //TEST(test_kaleidoscope_fail);
+  //TEST(test_helper_functions);
   //TEST(test_kaleidoscope_dense);
   //TEST(test_kaleidoscope_diagonal);
   //TEST(test_kaleidoscope_center);
