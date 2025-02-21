@@ -91,12 +91,14 @@ get_a:
 	.globl make_pixel
 make_pixel:
 	movl %edi, %eax       /* Start with red value */
-	shll $8, %eax         /* Shift left 8 bits to make room for green */
-	orl %esi, %eax        /* Add green value */
-	shll $8, %eax         /* Shift left 8 bits to make room for blue */
-	orl %edx, %eax        /* Add blue value */
-	shll $8, %eax         /* Shift left 8 bits to make room for alpha */
-	orl %ecx, %eax        /* Add alpha value */
+	shll $24, %eax        /* Shift red to bits 24-31 */
+	movl %esi, %r10d      /* Get green value */
+	shll $16, %r10d       /* Shift green to bits 16-23 */
+	orl %r10d, %eax       /* Combine with result */
+	movl %edx, %r10d      /* Get blue value */
+	shll $8, %r10d        /* Shift blue to bits 8-15 */
+	orl %r10d, %eax       /* Combine with result */
+	orl %ecx, %eax        /* Add alpha (already in bits 0-7) */
 	ret
 
 /*
