@@ -1,6 +1,7 @@
 /*
  * x86-64 assembly language implementations of functions
  */
+
 	.section .text
 
 /* Offsets of struct Image fields */
@@ -89,16 +90,15 @@ get_a:
  */
 	.globl make_pixel
 make_pixel:
-	movl %edi, %eax       /* Start with red value */
-	shll $24, %eax        /* Shift red to bits 24-31 */
-	movl %esi, %r10d      /* Get green value */
-	shll $16, %r10d       /* Shift green to bits 16-23 */
-	orl %r10d, %eax       /* Combine with result */
-	movl %edx, %r10d      /* Get blue value */
-	shll $8, %r10d        /* Shift blue to bits 8-15 */
-	orl %r10d, %eax       /* Combine with result */
-	orl %ecx, %eax        /* Add alpha (already in bits 0-7) */
-	ret
+    movl %edi, %eax       /* Start with red value */
+    shll $24, %eax        /* Shift left 24 bits to get red in position */
+    movl %esi, %edx       /* Get green value */
+    shll $16, %edx        /* Shift left 16 bits for green */
+    orl %edx, %eax        /* Add green */
+    movl %edx, %edx       /* Get blue value - THIS IS WRONG */
+    shll $8, %edx         /* Shift left 8 bits for blue */
+    orl %edx, %eax        /* Add blue */
+    orl %ecx, %eax        /* Add alpha (already in position 0-7) */
 
 /*
  * Convert pixel to grayscale using formula:
@@ -216,220 +216,271 @@ compute_index:
  */
 	.globl imgproc_rgb
 imgproc_rgb:
-	# Prologue
-	pushq   %rbp
-	movq    %rsp, %rbp
-	subq    $48, %rsp
-	
-	# Save callee-saved registers
-	pushq   %rbx
-	pushq   %r12
-	pushq   %r13
-	pushq   %r14
-	pushq   %r15
+    # Prologue with correct alignment
+    pushq   %rbp
+    movq    %rsp, %rbp
+    pushq   %rbx
+    pushq   %r12
+    pushq   %r13
+    pushq   %r14
+    pushq   %r15
+    subq    $48, %rsp        # Local vars space
+    subq    $8, %rsp         # Extra alignment
 
-	# Store input/output pointers
-	movq    %rdi, %r14          # r14 = input_img
-	movq    %rsi, %r15          # r15 = output_img
+    # Save parameters
+    movq    %rdi, %r14        # r14 = input_img
+    movq    %rsi, %r15        # r15 = output_img
 
-	# Set output dimensions
-	movl    (%r14), %eax        # input width
-	movl    %eax, %r12d         # save input width
-	shll    $1, %eax            # multiply by 2
-	movl    %eax, (%r15)        # store output width
-	movl    %eax, %ebx          # save output width
-	
-	movl    4(%r14), %eax       # input height  
-	movl    %eax, %r13d         # save input height
-	shll    $1, %eax            # multiply by 2
-	movl    %eax, 4(%r15)       # store output height
+    # Set dimensions
+    movl    (%r14), %eax      # input width
+    movl    %eax, %r12d       # save input width
+    imul    $2, %eax          # double width
+    movl    %eax, (%r15)      # store output width
 
-	# Calculate memory size and allocate
-	movl    (%r15), %eax        # output width
-	imull   4(%r15), %eax       # multiply by height
-	shll    $2, %eax            # multiply by 4 for bytes
-	
-	movq    %rax, %rdi          # size to allocate
-	call    malloc
-	testq   %rax, %rax          # check if malloc failed
-	je      .rgb_done
-	
-	movq    %rax, 8(%r15)       # store data pointer
-	movq    %rax, %r9           # r9 = output data
-	movq    8(%r14), %r8        # r8 = input data
+    movl    4(%r14), %eax     # input height
+    movl    %eax, %r13d       # save input height
+    imul    $2, %eax          # double height
+    movl    %eax, 4(%r15)     # store output height
 
-	# Process rows
-	xorl    %r10d, %r10d        # r10d = row counter (i)
+    # Save new width for indexing
+    movl    (%r15), %ebx      # new width
+
+    # Allocate memory
+    movl    (%r15), %eax      # width
+    imull   4(%r15), %eax     # multiply by height
+    shll    $2, %eax          # multiply by 4 for bytes
+    movq    %rax, %rdi        # setup malloc arg
+    call    malloc
+    testq   %rax, %rax        # check if malloc failed
+    je      .imgproc_rgb_done
+
+    # Store allocated pointer
+    movq    %rax, 8(%r15)     # store allocated pointer
+
+    # Get data pointers
+    movq    8(%r14), %r8      # input data
+    movq    8(%r15), %r9      # output data
+
+    # Row loop
+    xorl    %r10d, %r10d      # row = 0
 .rgb_row_loop:
-	cmpl    %r13d, %r10d        # compare with input height
-	jge     .rgb_done
-	
-	# Process columns
-	xorl    %r11d, %r11d        # r11d = column counter (j)
+    cmpl    %r13d, %r10d      # compare with height
+    jge     .imgproc_rgb_done
+
+    # Column loop
+    xorl    %r11d, %r11d      # col = 0
 .rgb_col_loop:
-	cmpl    %r12d, %r11d        # compare with input width
-	jge     .rgb_next_row
+    cmpl    %r12d, %r11d      # compare with width
+    jge     .rgb_next_row
 
-	# Calculate input index
-	movl    %r10d, %eax         # row
-	imull   %r12d, %eax         # multiply by input width
-	addl    %r11d, %eax         # add column
-	movl    (%r8,%rax,4), %ecx  # load input pixel
-	movl    %ecx, -20(%rbp)     # save original pixel
+    # Get input pixel
+    movl    %r10d, %eax       # row
+    imull   %r12d, %eax       # multiply by width
+    addl    %r11d, %eax       # add column
+    movl    %eax, %edx        # save index
+    shll    $2, %edx          # multiply by 4 for bytes
+    movl    (%r8,%rdx), %ecx  # load pixel
+    movl    %ecx, -20(%rbp)   # save original pixel
 
-	# Extract components
-	movl    %ecx, %edi
-	call    get_r
-	movl    %eax, -4(%rbp)      # red
-	
-	movl    -20(%rbp), %edi
-	call    get_g  
-	movl    %eax, -8(%rbp)      # green
-	
-	movl    -20(%rbp), %edi
-	call    get_b
-	movl    %eax, -12(%rbp)     # blue
-	
-	movl    -20(%rbp), %edi
-	call    get_a
-	movl    %eax, -16(%rbp)     # alpha
+    # Extract color components safely
+    movq    %rdi, %r13        # Save original rdi
+    
+    movl    %ecx, %edi        # Setup for color extraction
+    call    get_r             # Get red
+    movl    %eax, -4(%rbp)    # Save red
 
-	# Calculate base output index
-	movl    %r10d, %eax         # row
-	imull   %ebx, %eax          # multiply by output width
-	addl    %r11d, %eax         # add column
-	
-	# Quadrant A: Original
-	movl    -20(%rbp), %edx     # original pixel
-	movl    %edx, (%r9,%rax,4)  # store in output
-	
-	# Quadrant B: Red only
-	movl    -4(%rbp), %edi      # red
-	xorl    %esi, %esi          # green = 0
-	xorl    %edx, %edx          # blue = 0
-	movl    -16(%rbp), %ecx     # alpha
-	pushq   %rax                # save index
-	call    make_pixel
-	popq    %rdx                # restore index to rdx
-	addl    %r12d, %edx         # add input width for B
-	movl    %eax, (%r9,%rdx,4)  # store pixel
-	
-	# Quadrant C: Green only
-	movl    %r10d, %eax         # recalculate base index
-	addl    %r13d, %eax         # add input height for C
-	imull   %ebx, %eax          # multiply by output width
-	addl    %r11d, %eax         # add column
-	
-	xorl    %edi, %edi          # red = 0
-	movl    -8(%rbp), %esi      # green
-	xorl    %edx, %edx          # blue = 0
-	movl    -16(%rbp), %ecx     # alpha
-	pushq   %rax                # save index
-	call    make_pixel
-	popq    %rdx                # restore index
-	movl    %eax, (%r9,%rdx,4)  # store pixel
-	
-	# Quadrant D: Blue only
-	addl    %r12d, %edx         # add input width for D
-	
-	xorl    %edi, %edi          # red = 0
-	xorl    %esi, %esi          # green = 0
-	movl    -12(%rbp), %edx     # blue
-	movl    -16(%rbp), %ecx     # alpha
-	pushq   %rdx                # save index
-	call    make_pixel
-	popq    %rdx                # restore index
-	movl    %eax, (%r9,%rdx,4)  # store pixel
+    movl    %ecx, %edi        # Restore pixel value
+    call    get_g             # Get green
+    movl    %eax, -8(%rbp)    # Save green
 
-	incl    %r11d               # next column
-	jmp     .rgb_col_loop
+    movl    %ecx, %edi        # Restore pixel value
+    call    get_b             # Get blue
+    movl    %eax, -12(%rbp)   # Save blue
+
+    movl    %ecx, %edi        # Restore pixel value
+    call    get_a             # Get alpha
+    movl    %eax, -16(%rbp)   # Save alpha
+
+    movq    %r13, %rdi        # Restore original rdi
+
+    # Store quadrant A (original)
+    movl    %r10d, %eax       # row
+    imull   %ebx, %eax        # multiply by new width
+    addl    %r11d, %eax       # add column
+    movl    -20(%rbp), %edx   # get original pixel
+    movl    %edx, (%r9,%rax,4)
+
+    # Store quadrant B (red)
+    movl    %r10d, %eax       # row
+    imull   %ebx, %eax        # multiply by new width
+    addl    %r11d, %eax       # add column
+    addl    %r12d, %eax       # offset by input width
+    movl    %eax, -24(%rbp)   # save index
+    movl    -4(%rbp), %edi    # red
+    xorl    %esi, %esi        # green = 0
+    xorl    %edx, %edx        # blue = 0
+    movl    -16(%rbp), %ecx   # alpha
+    call    make_pixel
+    movl    -24(%rbp), %edx
+    movl    %eax, (%r9,%rdx,4)
+
+    # Store quadrant C (green)
+    movl    %r10d, %eax       # row
+    addl    %r13d, %eax       # offset by input height
+    imull   %ebx, %eax        # multiply by new width
+    addl    %r11d, %eax       # add column
+    movl    %eax, -28(%rbp)   # save index
+    xorl    %edi, %edi        # red = 0
+    movl    -8(%rbp), %esi    # green
+    xorl    %edx, %edx        # blue = 0
+    movl    -16(%rbp), %ecx   # alpha
+    call    make_pixel
+    movl    -28(%rbp), %edx
+    movl    %eax, (%r9,%rdx,4)
+
+    # Store quadrant D (blue)
+    movl    %r10d, %eax       # row
+    addl    %r13d, %eax       # offset by input height
+    imull   %ebx, %eax        # multiply by new width
+    addl    %r11d, %eax       # add column
+    addl    %r12d, %eax       # offset by input width
+    movl    %eax, -32(%rbp)   # save index
+    xorl    %edi, %edi        # red = 0
+    xorl    %esi, %esi        # green = 0
+    movl    -12(%rbp), %edx   # blue
+    movl    -16(%rbp), %ecx   # alpha
+    call    make_pixel
+    movl    -32(%rbp), %edx
+    movl    %eax, (%r9,%rdx,4)
+
+    # Next column
+    incl    %r11d
+    jmp     .rgb_col_loop
 
 .rgb_next_row:
-	incl    %r10d               # next row
-	jmp     .rgb_row_loop
+    incl    %r10d
+    jmp     .rgb_row_loop
 
-.rgb_done:
-	# Restore registers and stack
-	popq    %r15
-	popq    %r14  
-	popq    %r13
-	popq    %r12
-	popq    %rbx
-	movq    %rbp, %rsp
-	popq    %rbp
-	ret
+.imgproc_rgb_done:
+    # Epilogue
+    addq    $8, %rsp          # Remove alignment padding
+    addq    $48, %rsp         # Remove local vars space
+    popq    %r15
+    popq    %r14
+    popq    %r13
+    popq    %r12
+    popq    %rbx
+    popq    %rbp
+    ret
 
-/*
- * void imgproc_grayscale( struct Image *input_img, struct Image *output_img );
- *
- * Transform image by converting each pixel to grayscale.
- * This transformation always succeeds.
- *
- * Parameters:
- *   %rdi - pointer to original struct Image
- *   %rsi - pointer to output struct Image
- */
-	.globl imgproc_grayscale
+# imgproc_grayscale
+# Converts input pixels to grayscale using the formula:
+# y = (79 * r + 128 * g + 49 * b) / 256
+#
+# Parameters:
+#   %rdi - pointer to struct Image (input_img)
+#   %rsi - pointer to struct Image (output_img)
+        .globl imgproc_grayscale
 imgproc_grayscale:
-	# Prologue
-	pushq   %rbp
-	movq    %rsp, %rbp
-	
-	# Save callee-saved registers
-	pushq   %rbx
-	pushq   %r12
-	pushq   %r13
-	pushq   %r14
-	pushq   %r15
-	
-	# Store parameters
-	movq    %rdi, %r14          # input image
-	movq    %rsi, %r15          # output image
-	
-	# Copy dimensions
-	movl    (%r14), %eax        # width
-	movl    %eax, (%r15)
-	movl    4(%r14), %edx       # height
-	movl    %edx, 4(%r15)
-	
-	# Calculate size
-	imull   %edx, %eax          # width * height
-	movl    %eax, %ebx          # save total pixels
-	shll    $2, %eax            # multiply by 4 for bytes
-	
-	# Allocate memory
-	movq    %rax, %rdi
-	call    malloc
-	testq   %rax, %rax          # check if malloc failed
-	je      .grayscale_done
-	
-	movq    %rax, 8(%r15)       # store data pointer
-	movq    8(%r14), %r12       # input data
-	movq    %rax, %r13          # output data
-	
-	# Process pixels
-	xorl    %ecx, %ecx          # pixel counter
+    # Standard function prologue
+    pushq %rbp
+    movq %rsp, %rbp
 
-.grayscale_loop:
-	cmpl    %ebx, %ecx          # check if done
-	jge     .grayscale_done
-	
-	movl    (%r12,%rcx,4), %edi # load input pixel
-	call    to_grayscale        # convert to grayscale
-	movl    %eax, (%r13,%rcx,4) # store result
-	
-	incl    %ecx                # next pixel
-	jmp     .grayscale_loop
+    # Save callee-saved registers
+    pushq %rbx            # column counter
+    pushq %r12            # row counter
+    pushq %r13            # store pixel index
+    pushq %r14            # input_img pointer
+    pushq %r15            # output_img pointer
+    subq $8, %rsp        # maintain 16-byte alignment
+
+    # Save function parameters
+    movq %rdi, %r14       # r14 = input_img
+    movq %rsi, %r15       # r15 = output_img
+
+    # Copy dimensions from input to output
+    movl (%r14), %eax     # input width
+    movl %eax, (%r15)     # output width
+    movl 4(%r14), %eax    # input height
+    movl %eax, 4(%r15)    # output height
+
+    # Calculate size for malloc (width * height * 4 bytes per pixel)
+    movl (%r15), %eax     # width
+    imull 4(%r15), %eax   # width * height
+    movl %eax, %r13d      # store total pixels
+    shll $2, %eax         # multiply by 4 (each pixel is 4 bytes)
+
+    # Allocate memory for output image
+    movq %rax, %rdi       # argument to malloc (size)
+    call malloc 
+    testq %rax, %rax      # check if malloc failed
+    je .grayscale_error   # if malloc failed, jump to error handler
+
+    # Store allocated pointer in output_img->data
+    movq %rax, 8(%r15)
+
+    # Initialize row counter (i = 0)
+    xorl %r12d, %r12d     # r12d = row = 0
+
+.row_loop:
+    cmpl 4(%r14), %r12d   # compare row with height
+    jge .grayscale_done   # if row >= height, exit loop
+
+    # Initialize column counter (j = 0)
+    xorl %ebx, %ebx       # ebx = col = 0
+
+.col_loop:
+    cmpl (%r14), %ebx     # compare col with width
+    jge .next_row         # if col >= width, go to next row
+
+    # Compute pixel index = i * width + j
+    movq %r14, %rdi       # input_img pointer
+    movl %ebx, %esi       # col (j)
+    movl %r12d, %edx      # row (i)
+    call compute_index    # compute index
+    movl %eax, %r13d      # store index in r13d
+
+    # Load pixel from input image
+    movq 8(%r14), %rsi    # input data pointer
+    movl (%rsi,%r13,4), %edi  # load pixel into edi
+
+    # Convert to grayscale
+    pushq %rax            # save index
+    call to_grayscale     # convert pixel
+    popq %rdx             # restore index (to different register)
+
+    # Store grayscale pixel in output image
+    movq 8(%r15), %rsi    # output data pointer
+    movl %eax, (%rsi,%rdx,4)  # store transformed pixel
+
+    # Move to next column
+    incl %ebx
+    jmp .col_loop
+
+.next_row:
+    incl %r12d            # increment row counter
+    jmp .row_loop
+
+.grayscale_error:
+    # Handle allocation failure
+    xorl %eax, %eax       # clear return value
+    jmp .grayscale_cleanup
 
 .grayscale_done:
-	# Restore registers and stack
-	popq    %r15
-	popq    %r14
-	popq    %r13
-	popq    %r12
-	popq    %rbx
-	popq    %rbp
-	ret
+    movl $1, %eax         # return success
+
+.grayscale_cleanup:
+    # Restore stack and registers (function epilogue)
+    addq $8, %rsp         # restore stack alignment
+    popq %r15
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rbx
+    popq %rbp
+    ret
+
+ 
 
 /*
  * Stub implementation for imgproc_fade (to be implemented )
@@ -487,6 +538,5 @@ imgproc_kaleidoscope:
 	/* This avoids linker warning about executable stack */
 .section .note.GNU-stack,"",@progbits
 
-/*
-vim:ft=gas:
-*/
+/* vim: set ft=gas: */
+
