@@ -1,7 +1,6 @@
 /*
  * x86-64 assembly language implementations of functions
  */
-
 	.section .text
 
 /* Offsets of struct Image fields */
